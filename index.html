@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpendLens — Budget Analyzer</title>
+  <meta name="description"
+    content="Modern spending dashboard — analyze your expenses with interactive charts, filters, and insights. Works with Google Sheets or CSV data.">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+
+  <!-- ═══ Overlay ═══ -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ═══ Data Drawer ═══ -->
+  <aside class="drawer" id="dataDrawer">
+    <div class="drawer-header">
+      <h2>📂 Data Source</h2>
+      <button class="drawer-close" id="drawerClose">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="data-tabs">
+        <button class="data-tab active" data-tab="sheets">Google Sheets</button>
+        <button class="data-tab" data-tab="paste">Paste CSV</button>
+        <button class="data-tab" data-tab="upload">Upload File</button>
+      </div>
+
+      <div class="data-panel active" id="sheetsPanel">
+        <label for="sheetsUrl">Published CSV URL</label>
+        <input type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+        <button class="btn btn-primary" id="connectSheets">Connect</button>
+        <div class="connection-status" id="connectionStatus"></div>
+        <div style="font-size:12px;color:var(--text-tertiary);line-height:1.5;margin-top:4px;">
+          <strong>How to get the URL:</strong><br>
+          1. Open your Google Sheet<br>
+          2. File → Share → Publish to web<br>
+          3. Select CSV format → Publish<br>
+          4. Copy the link and paste above
+        </div>
+      </div>
+
+      <div class="data-panel" id="pastePanel">
+        <label for="csvPaste">Paste your CSV data</label>
+        <textarea id="csvPaste" rows="12" placeholder="Date,Amount,Category,Note
+1/3/2025,₹17702,Eating Out,Swiggy
+27/01/26,₹45,Miscellaneous,
+..."></textarea>
+        <button class="btn btn-primary" id="loadPaste">Load Data</button>
+      </div>
+
+      <div class="data-panel" id="uploadPanel">
+        <div class="upload-zone" id="uploadZone">
+          <span class="upload-icon">📁</span>
+          <p>Drop a <strong>.csv</strong> file here or click to browse</p>
+          <input type="file" id="fileInput" accept=".csv,.txt" hidden>
+        </div>
+      </div>
+
+      <div class="data-info" id="dataInfo">
+        <span id="recordCount">0 records loaded</span>
+        <button class="btn btn-danger btn-sm" id="clearData">Clear All</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ Main Dashboard ═══ -->
+  <main class="dashboard">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="app-title">💰 SpendLens</h1>
+        <span class="data-badge" id="dataBadge">No data</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost" id="manageData">
+          <span>📊</span> <span class="btn-text">Manage Data</span>
+        </button>
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📊</div>
+      <h2>Welcome to SpendLens</h2>
+      <p>Connect your Google Sheet or paste CSV data to start analysing your spending</p>
+      <button class="btn btn-primary" id="emptyStateBtn" style="margin-top:8px;font-size:16px;padding:14px 32px;">
+        Get Started
+      </button>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-content" id="dashboardContent" style="display:none;">
+
+      <!-- ═══ Main Nav Tabs ═══ -->
+      <div class="main-tabs" id="mainTabs">
+        <button class="main-tab active" data-main-tab="dashboard">📈 Dashboard</button>
+        <button class="main-tab" data-main-tab="alldata">📋 All Data</button>
+      </div>
+
+      <!-- ═══════ DASHBOARD TAB ═══════ -->
+      <div class="main-panel active" id="dashboardPanel">
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="filterYear">Year</label>
+            <select id="filterYear">
+              <option value="">All Years</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filterMonth">Month</label>
+            <select id="filterMonth">
+              <option value="">All Months</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Category</label>
+            <div class="multi-select" id="categorySelect">
+              <button class="multi-select-btn" id="categoryBtn" type="button">All Categories</button>
+              <div class="multi-select-dropdown" id="categoryDropdown">
+                <div class="multi-select-search">
+                  <input type="text" id="categorySearch" placeholder="🔍 Search categories…">
+                </div>
+                <div class="multi-select-actions">
+                  <button class="ms-action-btn" id="catSelectAll">Select All</button>
+                  <button class="ms-action-btn" id="catClearAll">Clear All</button>
+                </div>
+                <div class="multi-select-list" id="categoryList"></div>
+              </div>
+            </div>
+          </div>
+          <div class="filter-group">
+            <label for="filterKeyword">Keyword</label>
+            <input type="text" id="filterKeyword" placeholder="Search in notes…">
+          </div>
+          <button class="btn btn-ghost btn-sm" id="clearFilters" style="align-self:flex-end;">Clear</button>
+        </div>
+
+        <!-- Filter Summary -->
+        <div class="filter-summary" id="filterSummary" style="display:none;">
+          <span id="filterSummaryText"></span>
+        </div>
+
+        <!-- KPI Cards (5 cards: Total, Txns, Top Cat, Highest, MoM) -->
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <span class="kpi-label">Total Spend</span>
+            <span class="kpi-value" id="kpiTotal">₹0</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Transactions</span>
+            <span class="kpi-value" id="kpiCount">0</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Top Category</span>
+            <span class="kpi-value kpi-value-sm" id="kpiTopCat">—</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Highest Expense</span>
+            <span class="kpi-value" id="kpiMax">₹0</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">MoM Change</span>
+            <span class="kpi-value" id="kpiMoM">—</span>
+          </div>
+        </div>
+
+        <!-- Charts Grid — reordered per user request -->
+        <div class="charts-grid">
+
+          <!-- 1. Monthly Trend (wide) -->
+          <div class="chart-card chart-wide">
+            <div class="chart-header">
+              <h3>Monthly Spending Trend</h3>
+              <select class="chart-switcher" data-chart="monthlyTrend">
+                <option value="line">Line</option>
+                <option value="bar">Bar</option>
+              </select>
+            </div>
+            <div class="chart-body"><canvas id="chartMonthlyTrend"></canvas></div>
+          </div>
+
+          <!-- 2. Category Share Breakdown table (wide) — moved up -->
+          <div class="table-card chart-wide" style="margin-bottom:0;">
+            <div class="table-header">
+              <h3>📊 Category Share Breakdown</h3>
+              <span class="table-count" id="categoryShareCount"></span>
+            </div>
+            <div class="table-wrapper" style="max-height:400px;overflow-y:auto;">
+              <table id="categoryShareTable">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Total</th>
+                    <th>% Share</th>
+                    <th>Transactions</th>
+                    <th>Avg per Txn</th>
+                    <th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody id="categoryShareBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 3. Top N Expenses (wide) — moved below category share -->
+          <div class="chart-card chart-wide">
+            <div class="chart-header">
+              <h3 id="topExpensesTitle">Top 10 Expenses</h3>
+              <div class="chart-header-actions">
+                <select class="chart-switcher" id="topNSelect">
+                  <option value="10" selected>Top 10</option>
+                  <option value="20">Top 20</option>
+                  <option value="50">Top 50</option>
+                </select>
+                <select class="chart-switcher" data-chart="topExpenses">
+                  <option value="bar">Bar</option>
+                  <option value="table">Table</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-body chart-body-tall" id="topExpensesBody">
+              <canvas id="chartTopExpenses"></canvas>
+              <div class="top-expenses-table" id="topExpensesTable" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- 4. Category Breakdown -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Category Breakdown</h3>
+              <div class="chart-header-actions">
+                <button class="btn btn-ghost btn-xs" id="catBreakdownDeselectAll" title="Deselect all legend items">⊘
+                  Reset</button>
+                <select class="chart-switcher" data-chart="categoryBreakdown">
+                  <option value="doughnut">Donut</option>
+                  <option value="pie">Pie</option>
+                  <option value="bar">Bar</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-body chart-body-cat-breakdown"><canvas id="chartCategoryBreakdown"></canvas></div>
+          </div>
+
+          <!-- 5. Cumulative Spend -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Cumulative Spending</h3>
+              <select class="chart-switcher" data-chart="cumulativeSpend">
+                <option value="line">Line</option>
+                <option value="bar">Bar</option>
+              </select>
+            </div>
+            <div class="chart-body"><canvas id="chartCumulativeSpend"></canvas></div>
+          </div>
+
+          <!-- 6. Daily Spending -->
+          <div class="chart-card chart-wide">
+            <div class="chart-header">
+              <h3>Daily Spending</h3>
+              <select class="chart-switcher" data-chart="dailySpending">
+                <option value="bar">Bar</option>
+                <option value="line">Line</option>
+              </select>
+            </div>
+            <div class="chart-body"><canvas id="chartDailySpending"></canvas></div>
+          </div>
+
+          <!-- 7. Category Over Time (wide, taller) -->
+          <div class="chart-card chart-wide">
+            <div class="chart-header">
+              <h3>Category Trend Over Time</h3>
+              <div class="chart-header-actions">
+                <button class="btn btn-ghost btn-xs" id="catTrendDeselectAll" title="Deselect all legend items">⊘
+                  Reset</button>
+                <select class="chart-switcher" data-chart="categoryTrend">
+                  <option value="bar">Stacked Bar</option>
+                  <option value="line">Stacked Area</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-body chart-body-cat-trend"><canvas id="chartCategoryTrend"></canvas></div>
+          </div>
+
+          <!-- 8. Day of Week -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Day of Week Pattern</h3>
+              <select class="chart-switcher" data-chart="dayOfWeek">
+                <option value="bar">Bar</option>
+                <option value="radar">Radar</option>
+              </select>
+            </div>
+            <div class="chart-body"><canvas id="chartDayOfWeek"></canvas></div>
+          </div>
+
+          <!-- 9. Spending Heatmap -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Weekly Spending Heatmap</h3>
+            </div>
+            <div class="chart-body" id="heatmapBody">
+              <div class="heatmap-container" id="heatmapContainer"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Filtered Transaction Table -->
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Filtered Transactions</h3>
+            <div class="table-header-right">
+              <label class="entries-label">Show
+                <select class="entries-select" id="filteredEntriesSelect">
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                entries
+              </label>
+              <span class="table-count" id="tableCount">0 records</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:500px;overflow-y:auto;">
+            <table id="transactionTable">
+              <thead>
+                <tr>
+                  <th data-sort="date">Date ↕</th>
+                  <th data-sort="amount">Amount ↕</th>
+                  <th data-sort="category">Category ↕</th>
+                  <th data-sort="note">Note ↕</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+          <div class="table-pagination" id="tablePagination"></div>
+        </div>
+      </div>
+
+      <!-- ═══════ ALL DATA TAB ═══════ -->
+      <div class="main-panel" id="alldataPanel">
+        <div class="alldata-toolbar">
+          <div class="alldata-search">
+            <input type="text" id="alldataSearch" placeholder="🔍 Search all records…">
+          </div>
+          <span class="alldata-count" id="alldataCount">0 records</span>
+        </div>
+        <div class="table-card">
+          <div class="table-wrapper" style="max-height:calc(100vh - 260px);overflow-y:auto;">
+            <table id="alldataTable">
+              <thead>
+                <tr>
+                  <th data-allsort="index"># ↕</th>
+                  <th data-allsort="date">Date ↕</th>
+                  <th data-allsort="amount">Amount ↕</th>
+                  <th data-allsort="category">Category ↕</th>
+                  <th data-allsort="note">Note ↕</th>
+                </tr>
+              </thead>
+              <tbody id="alldataBody"></tbody>
+            </table>
+          </div>
+          <div class="table-pagination" id="alldataPagination"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>Vibe coded by <strong>TTG</strong> for spend analysis ✨</p>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+  <script src="js/theme.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
