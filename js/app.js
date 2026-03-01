@@ -9,6 +9,10 @@ const App = (() => {
     let sortCol = 'date';
     let sortAsc = false;
 
+    // Inline filters for Filtered Transactions table
+    let tableCatFilter = '';
+    let tableNoteFilter = '';
+
     // All Data tab state
     let allDataPage = 1;
     let allDataSortCol = 'date';
@@ -24,6 +28,7 @@ const App = (() => {
         bindFilters();
         bindChartSwitchers();
         bindTable();
+        bindTableFilters();
         bindMainTabs();
         bindAllDataTable();
         bindDeselectButtons();
@@ -62,8 +67,9 @@ const App = (() => {
         updateKPIs(filteredData);
         updateFilterSummary(filteredData);
         ChartManager.updateAll(filteredData);
-        updateCategoryShareTable(filteredData);
+        updateCategoryShareTable(filteredData, rawData);
         currentPage = 1;
+        populateTableCatDropdown(filteredData);
         renderTable(filteredData);
     }
 
@@ -159,7 +165,50 @@ const App = (() => {
     }
 
     /* ═══ Category Share Table ══════════════════ */
-    function updateCategoryShareTable(data) {
+    function computeMedian(arr) {
+        if (!arr.length) return 0;
+        const s = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(s.length / 2);
+        return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    }
+
+    function getMonthlyMedians(allData, numMonths) {
+        // Build per-category, per-month totals from ALL data
+        const catMonthAmt = {};   // { cat: { '2025-03': amount, ... } }
+        const catMonthCnt = {};   // { cat: { '2025-03': count, ... } }
+        const allMonths = new Set();
+
+        allData.forEach(d => {
+            const m = d.date.substring(0, 7);
+            allMonths.add(m);
+            if (!catMonthAmt[d.category]) { catMonthAmt[d.category] = {}; catMonthCnt[d.category] = {}; }
+            catMonthAmt[d.category][m] = (catMonthAmt[d.category][m] || 0) + d.amount;
+            catMonthCnt[d.category][m] = (catMonthCnt[d.category][m] || 0) + 1;
+        });
+
+        // Get the last N months (sorted descending, take numMonths)
+        const sortedMonths = [...allMonths].sort().reverse().slice(0, numMonths);
+
+        const medianAmt = {};
+        const medianCnt = {};
+        for (const cat of Object.keys(catMonthAmt)) {
+            const amts = sortedMonths.map(m => catMonthAmt[cat][m] || 0);
+            const cnts = sortedMonths.map(m => catMonthCnt[cat][m] || 0);
+            medianAmt[cat] = computeMedian(amts);
+            medianCnt[cat] = computeMedian(cnts);
+        }
+        return { medianAmt, medianCnt };
+    }
+
+    function deviationBadge(current, median) {
+        if (median === 0) return '<span class="dev-badge dev-neutral">—</span>';
+        const pct = ((current - median) / median * 100).toFixed(0);
+        const sign = pct > 0 ? '+' : '';
+        const cls = pct > 10 ? 'dev-up' : pct < -10 ? 'dev-down' : 'dev-neutral';
+        return `<span class="dev-badge ${cls}">${sign}${pct}%</span>`;
+    }
+
+    function updateCategoryShareTable(data, allData) {
         const catMap = {};
         const catCount = {};
         data.forEach(d => {
@@ -169,6 +218,7 @@ const App = (() => {
 
         const total = data.reduce((s, d) => s + d.amount, 0);
         const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+        const { medianAmt, medianCnt } = getMonthlyMedians(allData || data, 6);
 
         const tbody = document.getElementById('categoryShareBody');
         tbody.innerHTML = sorted.map(([cat, amt]) => {
@@ -178,18 +228,26 @@ const App = (() => {
             const color = ChartManager.getColor(cat);
             const barWidth = total > 0 ? (amt / total * 100) : 0;
 
+            const mAmt = Math.round(medianAmt[cat] || 0);
+            const mCnt = Math.round(medianCnt[cat] || 0);
+
             return `<tr>
                 <td><span class="category-badge" style="background:${color}18;color:${color};">${cat}</span></td>
-                <td style="font-weight:600;color:var(--accent);">₹${Number(amt).toLocaleString('en-IN')}</td>
+                <td class="cell-with-sub">
+                    <span style="font-weight:600;color:var(--accent);">₹${Number(amt).toLocaleString('en-IN')}</span>
+                    <span class="sub-median">Med ₹${mAmt.toLocaleString('en-IN')} ${deviationBadge(amt, mAmt)}</span>
+                </td>
                 <td>
                     <div class="share-bar-container">
                         <div class="share-bar" style="width:${barWidth}%;background:${color};"></div>
                         <span>${pct}%</span>
                     </div>
                 </td>
-                <td>${txnCount}</td>
+                <td class="cell-with-sub">
+                    <span style="font-weight:600;">${txnCount}</span>
+                    <span class="sub-median">Med ${mCnt} ${deviationBadge(txnCount, mCnt)}</span>
+                </td>
                 <td>₹${avgTxn.toLocaleString('en-IN')}</td>
-                <td style="font-size:18px;">${pct > 15 ? '🔴' : pct > 8 ? '🟡' : '🟢'}</td>
             </tr>`;
         }).join('');
 
@@ -198,8 +256,30 @@ const App = (() => {
     }
 
     /* ═══ Transaction table (Filtered) ═════════ */
+    function getTableData(data) {
+        let out = data;
+        if (tableCatFilter) out = out.filter(d => d.category === tableCatFilter);
+        if (tableNoteFilter) {
+            const q = tableNoteFilter.toLowerCase();
+            out = out.filter(d => (d.note || '').toLowerCase().includes(q));
+        }
+        return out;
+    }
+
+    function populateTableCatDropdown(data) {
+        const sel = document.getElementById('tableCatFilter');
+        if (!sel) return;
+        const cats = [...new Set(data.map(d => d.category))].sort();
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">All Categories</option>';
+        cats.forEach(c => {
+            sel.innerHTML += `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`;
+        });
+    }
+
     function renderTable(data) {
-        const sorted = [...data].sort((a, b) => {
+        const tableData = getTableData(data);
+        const sorted = [...tableData].sort((a, b) => {
             let va = a[sortCol], vb = b[sortCol];
             if (sortCol === 'amount') { va = +va; vb = +vb; }
             else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
@@ -224,8 +304,31 @@ const App = (() => {
       </tr>`;
         }).join('');
 
-        document.getElementById('tableCount').textContent = `${data.length} records`;
+        document.getElementById('tableCount').textContent = `${tableData.length} of ${data.length} records`;
         renderPagination(totalPages, 'tablePagination', currentPage, (pg) => { currentPage = pg; renderTable(filteredData); });
+    }
+
+    function bindTableFilters() {
+        const catSel = document.getElementById('tableCatFilter');
+        if (catSel) {
+            catSel.addEventListener('change', e => {
+                tableCatFilter = e.target.value;
+                currentPage = 1;
+                renderTable(filteredData);
+            });
+        }
+        const noteInput = document.getElementById('tableNoteFilter');
+        if (noteInput) {
+            let timer;
+            noteInput.addEventListener('input', e => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    tableNoteFilter = e.target.value.trim();
+                    currentPage = 1;
+                    renderTable(filteredData);
+                }, 250);
+            });
+        }
     }
 
     /* ═══ All Data Table ═══════════════════════ */

@@ -939,6 +939,84 @@ body {
   min-width: 2px;
 }
 
+/* ═══ Category Share - Median & Deviation ════ */
+.cell-with-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.sub-median {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dev-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dev-up {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.dev-down {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+}
+
+.dev-neutral {
+  background: var(--bg-input);
+  color: var(--text-tertiary);
+}
+
+/* ═══ Transaction Table Inline Filters ════════ */
+.table-inline-filter {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  max-width: 160px;
+}
+
+.table-inline-filter:hover,
+.table-inline-filter:focus {
+  border-color: var(--accent);
+}
+
+.table-inline-search {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--transition);
+  width: 160px;
+}
+
+.table-inline-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 /* ═══ Transaction Table ═══════════════════════ */
 .table-card {
   background: var(--bg-card);

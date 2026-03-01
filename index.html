@@ -199,11 +199,10 @@
                 <thead>
                   <tr>
                     <th>Category</th>
-                    <th>Total</th>
+                    <th>Total / 6M Median</th>
                     <th>% Share</th>
-                    <th>Transactions</th>
-                    <th>Avg per Txn</th>
-                    <th>Trend</th>
+                    <th>Txns / 6M Median</th>
+                    <th>Avg/Txn</th>
                   </tr>
                 </thead>
                 <tbody id="categoryShareBody"></tbody>
@@ -319,6 +318,10 @@
           <div class="table-header">
             <h3>Filtered Transactions</h3>
             <div class="table-header-right">
+              <select class="table-inline-filter" id="tableCatFilter">
+                <option value="">All Categories</option>
+              </select>
+              <input type="text" class="table-inline-search" id="tableNoteFilter" placeholder="🔍 Search notes…">
               <label class="entries-label">Show
                 <select class="entries-select" id="filteredEntriesSelect">
                   <option value="25" selected>25</option>
