@@ -1,0 +1,6 @@
+# Original data (unencrypted) — never commit this
+orig_data/
+
+# OS files
+.DS_Store
+Thumbs.db
