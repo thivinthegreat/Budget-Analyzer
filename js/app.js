@@ -459,6 +459,55 @@ const App = (() => {
             });
         });
 
+        // Encrypted data unlock
+        const unlockBtn = document.getElementById('unlockData');
+        const encInput = document.getElementById('encPassphrase');
+        const encStatus = document.getElementById('encStatus');
+
+        async function doUnlock() {
+            const passphrase = encInput.value;
+            if (!passphrase) { toast('Please enter your passphrase', 'error'); return; }
+
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = '⏳ Decrypting…';
+            encStatus.className = 'connection-status loading';
+            encStatus.textContent = '⏳ Verifying passphrase…';
+
+            try {
+                // Fetch and verify
+                const verifyRes = await fetch('data/verify.enc');
+                if (!verifyRes.ok) throw new Error('Encrypted files not found. Run encrypt.html first.');
+                const verifyBytes = await verifyRes.arrayBuffer();
+                const isValid = await CryptoManager.verify(verifyBytes, passphrase);
+                if (!isValid) throw new Error('Wrong passphrase');
+
+                // Fetch and decrypt data
+                encStatus.textContent = '⏳ Decrypting data…';
+                const dataRes = await fetch('data/transactions.enc');
+                if (!dataRes.ok) throw new Error('transactions.enc not found');
+                const dataBytes = await dataRes.arrayBuffer();
+                const csvText = await CryptoManager.decrypt(dataBytes, passphrase);
+
+                // Parse CSV and load
+                const records = DataManager.parseCSV(csvText);
+                if (!records.length) throw new Error('Decrypted data has no valid records');
+
+                encStatus.className = 'connection-status success';
+                encStatus.textContent = `✓ Unlocked — ${records.length} records decrypted`;
+                onDataLoaded(records, 'Encrypted file');
+            } catch (e) {
+                encStatus.className = 'connection-status error';
+                encStatus.textContent = `✗ ${e.message}`;
+                toast(e.message, 'error');
+            }
+
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = 'Unlock & Load Data';
+        }
+
+        unlockBtn.addEventListener('click', doUnlock);
+        encInput.addEventListener('keydown', e => { if (e.key === 'Enter') doUnlock(); });
+
         // Google Sheets connect
         document.getElementById('connectSheets').addEventListener('click', async () => {
             const url = document.getElementById('sheetsUrl').value.trim();

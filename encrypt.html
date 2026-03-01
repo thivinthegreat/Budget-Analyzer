@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpendLens — Encrypt Data</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+    <style>
+        :root {
+            --bg: #0f1117;
+            --bg-card: #1a1d27;
+            --border: #2a2d3a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-soft: rgba(99, 102, 241, 0.15);
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --success: #10b981;
+            --danger: #ef4444;
+            --radius: 12px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-number {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: calc(var(--radius) - 4px);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .upload-zone .icon {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        .upload-zone p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .upload-zone .filename {
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) - 4px);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .divider {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 12px;
+            margin: 12px 0;
+            position: relative;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .divider::before {
+            left: 0;
+        }
+
+        .divider::after {
+            right: 0;
+        }
+
+        .pass-group {
+            margin-bottom: 12px;
+        }
+
+        .pass-input {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 15px;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) - 4px);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+            letter-spacing: 2px;
+        }
+
+        .pass-input:focus {
+            border-color: var(--accent);
+        }
+
+        .pass-match {
+            font-size: 12px;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .pass-match.ok {
+            color: var(--success);
+        }
+
+        .pass-match.no {
+            color: var(--danger);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            padding: 14px;
+            border-radius: calc(var(--radius) - 4px);
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success);
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger);
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .strength {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 8px;
+            background: var(--border);
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s, background 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 SpendLens Encrypt</h1>
+            <p>Encrypt your CSV data for safe storage on GitHub</p>
+        </div>
+
+        <!-- Step 1: Load Data -->
+        <div class="card">
+            <h2><span class="step-number">1</span> Load Your CSV</h2>
+            <div class="upload-zone" id="uploadZone">
+                <div class="icon">📁</div>
+                <p>Drop a <strong>.csv</strong> file here or click to browse</p>
+                <div class="filename" id="fileName" style="display:none;"></div>
+                <input type="file" id="fileInput" accept=".csv,.txt">
+            </div>
+            <div class="divider">OR</div>
+            <label for="csvPaste">Paste CSV Data</label>
+            <textarea id="csvPaste" placeholder="Paste your CSV data here..."></textarea>
+        </div>
+
+        <!-- Step 2: Passphrase -->
+        <div class="card">
+            <h2><span class="step-number">2</span> Set Passphrase</h2>
+            <div class="pass-group">
+                <label for="pass1">Passphrase</label>
+                <input type="password" class="pass-input" id="pass1" placeholder="Enter a strong passphrase…">
+                <div class="strength">
+                    <div class="strength-bar" id="strengthBar"></div>
+                </div>
+            </div>
+            <div class="pass-group">
+                <label for="pass2">Confirm Passphrase</label>
+                <input type="password" class="pass-input" id="pass2" placeholder="Re-enter passphrase…">
+                <div class="pass-match" id="passMatch"></div>
+            </div>
+        </div>
+
+        <!-- Step 3: Encrypt -->
+        <div class="card">
+            <h2><span class="step-number">3</span> Encrypt & Download</h2>
+            <button class="btn btn-primary" id="encryptBtn" disabled>
+                <span>🔒</span> Encrypt & Download Files
+            </button>
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="footer">
+            <p>Move downloaded <code>.enc</code> files to <code>data/</code> folder, then commit & push</p>
+            <p style="margin-top:6px;"><a href="index.html">← Back to SpendLens</a></p>
+        </div>
+    </div>
+
+    <script src="js/crypto.js"></script>
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const csvPaste = document.getElementById('csvPaste');
+        const fileNameEl = document.getElementById('fileName');
+        const pass1 = document.getElementById('pass1');
+        const pass2 = document.getElementById('pass2');
+        const passMatch = document.getElementById('passMatch');
+        const strengthBar = document.getElementById('strengthBar');
+        const encryptBtn = document.getElementById('encryptBtn');
+        const status = document.getElementById('status');
+
+        let csvData = '';
+
+        // File upload
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--accent)'; });
+        uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '';
+            if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                csvData = reader.result;
+                fileNameEl.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                fileNameEl.style.display = 'block';
+                csvPaste.value = '';
+                checkReady();
+            };
+            reader.readAsText(file);
+        }
+
+        csvPaste.addEventListener('input', () => {
+            if (csvPaste.value.trim()) {
+                csvData = csvPaste.value;
+                fileNameEl.style.display = 'none';
+            }
+            checkReady();
+        });
+
+        // Passphrase
+        function getStrength(p) {
+            let score = 0;
+            if (p.length >= 8) score++;
+            if (p.length >= 16) score++;
+            if (p.length >= 24) score++;
+            if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+            if (/\d/.test(p)) score++;
+            if (/[^A-Za-z0-9]/.test(p)) score++;
+            return Math.min(score, 5);
+        }
+
+        pass1.addEventListener('input', () => {
+            const s = getStrength(pass1.value);
+            const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#10b981'];
+            strengthBar.style.width = `${(s / 5) * 100}%`;
+            strengthBar.style.background = s > 0 ? colors[s - 1] : '';
+            checkMatch();
+        });
+
+        pass2.addEventListener('input', checkMatch);
+
+        function checkMatch() {
+            if (!pass2.value) { passMatch.textContent = ''; passMatch.className = 'pass-match'; }
+            else if (pass1.value === pass2.value) { passMatch.textContent = '✓ Passphrases match'; passMatch.className = 'pass-match ok'; }
+            else { passMatch.textContent = '✗ Passphrases do not match'; passMatch.className = 'pass-match no'; }
+            checkReady();
+        }
+
+        function checkReady() {
+            const hasData = csvData.trim().length > 0 || csvPaste.value.trim().length > 0;
+            const hasPass = pass1.value.length >= 8 && pass1.value === pass2.value;
+            encryptBtn.disabled = !(hasData && hasPass);
+        }
+
+        // Encrypt
+        encryptBtn.addEventListener('click', async () => {
+            const data = csvPaste.value.trim() || csvData;
+            if (!data) return;
+
+            encryptBtn.disabled = true;
+            encryptBtn.innerHTML = '<span>⏳</span> Encrypting…';
+            status.className = 'status';
+            status.style.display = 'none';
+
+            try {
+                // Encrypt CSV data
+                const encData = await CryptoManager.encrypt(data, pass1.value);
+
+                // Encrypt verification string
+                const encVerify = await CryptoManager.encrypt(
+                    CryptoManager.getVerifyPlaintext(), pass1.value
+                );
+
+                // Download both files
+                CryptoManager.downloadFile(encData, 'transactions.enc');
+                await new Promise(r => setTimeout(r, 500)); // small delay between downloads
+                CryptoManager.downloadFile(encVerify, 'verify.enc');
+
+                status.textContent = '✓ Encrypted! Move transactions.enc and verify.enc to the data/ folder, then commit & push.';
+                status.className = 'status success';
+            } catch (e) {
+                status.textContent = '✗ Encryption failed: ' + e.message;
+                status.className = 'status error';
+            }
+
+            encryptBtn.innerHTML = '<span>🔒</span> Encrypt & Download Files';
+            checkReady();
+        });
+    </script>
+</body>
+
+</html>

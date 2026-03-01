@@ -25,12 +25,25 @@
     </div>
     <div class="drawer-content">
       <div class="data-tabs">
-        <button class="data-tab active" data-tab="sheets">Google Sheets</button>
+        <button class="data-tab active" data-tab="encrypted">🔐 Encrypted</button>
+        <button class="data-tab" data-tab="sheets">Google Sheets</button>
         <button class="data-tab" data-tab="paste">Paste CSV</button>
         <button class="data-tab" data-tab="upload">Upload File</button>
       </div>
 
-      <div class="data-panel active" id="sheetsPanel">
+      <div class="data-panel active" id="encryptedPanel">
+        <div class="enc-lock-icon">🔐</div>
+        <label for="encPassphrase">Enter your passphrase to decrypt data</label>
+        <input type="password" id="encPassphrase" placeholder="Your encryption passphrase…" style="letter-spacing:1px;">
+        <button class="btn btn-primary" id="unlockData" style="margin-top:10px;">Unlock & Load Data</button>
+        <div class="connection-status" id="encStatus"></div>
+        <div style="font-size:12px;color:var(--text-tertiary);line-height:1.5;margin-top:8px;">
+          Data is loaded from encrypted files in <code>data/</code> folder.<br>
+          Use <a href="encrypt.html" style="color:var(--accent);">encrypt.html</a> to generate encrypted files.
+        </div>
+      </div>
+
+      <div class="data-panel" id="sheetsPanel">
         <label for="sheetsUrl">Published CSV URL</label>
         <input type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
         <button class="btn btn-primary" id="connectSheets">Connect</button>
@@ -391,6 +404,7 @@
     src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 
   <script src="js/theme.js"></script>
+  <script src="js/crypto.js"></script>
   <script src="js/data.js"></script>
   <script src="js/filters.js"></script>
   <script src="js/charts.js"></script>
